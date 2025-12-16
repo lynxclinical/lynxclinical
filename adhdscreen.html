@@ -1,162 +1,256 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --main-color: rgb(109, 88, 191);
-        }
-
-        body {
-            user-select: none;
-            -moz-user-select: none;
-            -webkit-user-select: none;
-            -ms-user-select: none;
-        }
-
-        #a {
-            position: fixed;
-            top: 0;
-            left: 0;
-            overflow: hidden;
-            opacity: 1;
-            filter: brightness(50%);
-            transition: 0.25s;
-            z-index: -1;
-        }
-
-        #intro {
-            color: white;
-            font-family: 'Roboto', sans-serif;
-            letter-spacing: 2px;
-            font-size: 15px;
-            opacity: 1;
-            transition: 0.25s;
-            pointer-events: none;
-        }
-
-        .d {
-            font-family: "Roboto", sans-serif;
-            outline: none;
-            border: 2px solid var(--main-color);
-            letter-spacing: 2px;
-            transition: 0.25s;
-            opacity: 0;
-            color: var(--main-color);
-            background: white;
-            padding: 10px;
-        }
-
-        .d:hover {
-            background: var(--main-color);
-            color: white;
-        }
-
-        .t {
-            width: 7em;
-            height: 3em;
-            letter-spacing: 2px;
-            background: var(--main-color);
-            border-radius: 2em;
-            color: white;
-            position: fixed;
-            box-shadow: 0.1em 0.1em 5px 0 rgba(0, 0, 0, 0.3);
-            font-family: "Roboto";
-            left: 100%;
-            text-align: right;
-            line-height: 3em;
-            padding-right: 0.7em;
-            top: 100%;
-            margin-top: -4em;
-            margin-left: -8em;
-        }
-
-        #remainingFood {
-            margin-top: -8em;
-        }
-
-        #remainingTime {
-            margin-top: -4em;
-        }
-
-        #clickN {
-            opacity: 1;
-            position: fixed;
-            border: 2px solid var(--main-color);
-            outline: none;
-            background: var(--main-color);
-            color: white;
-            text-align: center;
-            width: 10em;
-            opacity: 0;
-            transition: 0.25s;
-            top: 50%;
-            margin-top: 1em;
-            left: 50%;
-            margin-left: -5em;
-            pointer-events: none;
-        }
-
-        #clickN:hover {
-            transform: rotate(5deg);
-        }
-
-        .sync {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 3em;
-            height: 3em;
-            border-radius: 100%;
-            border: 2px solid transparent;
-            border-top: 2px solid var(--main-color);
-            animation-name: a;
-            animation-duration: 0.5s;
-            pointer-events: none;
-            animation-timing-function: linear;
-            opacity: 0;
-            top: 100%;
-            left: 100%;
-            transition: 0.25s;
-            margin-left: -13em;
-            margin-top: -8em;
-            animation-iteration-count: infinite;
-        }
-        #quickT {
-            position: fixed;
-            top: 100%;
-            left: 100%;
-            margin-left: -15em;
-            color: white;
-            margin-top: -3em;
-            font-family: "Roboto";
-            width: 7em;
-            opacity: 0;
-            transition: 0.25s;
-            pointer-events: none;
-            text-align: center;
-            font-style: italic;
-        }
-        @keyframes a {
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<title>LynxClinical | Continuous Performance Task</title>
+<style>
+body { font-family: Arial, sans-serif; background:#f5f5f5; text-align:center; margin:20px; }
+#stimulus { font-size:90px; height:120px; margin-top:30px; }
+button { padding:14px 28px; font-size:18px; margin-top:10px; }
+table { margin:30px auto; border-collapse:collapse; background:#fff; }
+th, td { border:1px solid #ccc; padding:8px 14px; }
+.abnormal { color:red; font-weight:bold; }
+canvas { margin-top:30px; border:1px solid #ccc; background:#fff; display:none; }
+</style>
 </head>
-
 <body>
-    <div id="intro"></div>
-    <br>
-    <button id="clickI" class="d">Continue</button>
-    <button id="clickN" class="d">See My Score</button>
-    <canvas id="a"></canvas>
-    <div id="remainingFood" class="t">TOKENS</div>
-    <div id="remainingTime" class="t">TIME</div>
-    <div class="sync" id="sync"></div><div id="quickT">Syncing with our database...</div>
-    <script src="game1.js"></script>
-</body>
 
+<h1>Continuous Performance Task – LynxClinical</h1>
+<p>Press <strong>SPACE</strong> or click <strong>Respond</strong> for every letter except <strong>X</strong>.</p>
+
+<div id="stimulus"></div>
+<button id="respBtn">Respond</button>
+<div id="counter"></div>
+
+<canvas id="plot" width="900" height="420"></canvas>
+
+<script>
+/* ---------------- CONFIG ---------------- */
+const TOTAL_TRIALS = 300;
+const NO_GO_RATE = 0.10;
+const STIM_MS = 250;
+const ISI_MS = 1000;
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+/* Adult norms – Riccio et al., 2002 */
+const NORMS = {
+  omission:   { mean: 4.2, sd: 4.0, dir: "high" },
+  commission: { mean: 8.5, sd: 6.0, dir: "high" },
+  rt:         { mean: 485, sd: 70,  dir: "high" },
+  rtSD:       { mean: 120, sd: 40,  dir: "high" },
+  dprime:     { mean: 3.1, sd: 0.6, dir: "low"  }
+};
+
+let trials = [];
+let data = [];
+let idx = 0;
+let startTime = 0;
+let waiting = false;
+
+const stim = document.getElementById("stimulus");
+const counter = document.getElementById("counter");
+const btn = document.getElementById("respBtn");
+const canvas = document.getElementById("plot");
+const ctx = canvas.getContext("2d");
+
+/* ---------------- SDT ---------------- */
+function erfinv(x) {
+  let a = 0.147;
+  let ln = Math.log(1 - x*x);
+  return Math.sign(x) *
+    Math.sqrt(Math.sqrt((2/(Math.PI*a) + ln/2)**2 - ln/a) - (2/(Math.PI*a) + ln/2));
+}
+function z(p) {
+  p = Math.min(Math.max(p, 0.0001), 0.9999);
+  return Math.sqrt(2) * erfinv(2*p - 1);
+}
+function dPrime(hitRate, faRate) {
+  return z(hitRate) - z(faRate);
+}
+function zToT(raw, mean, sd, invert=false) {
+  let zVal = (raw - mean) / sd;
+  if (invert) zVal *= -1;
+  return Math.round(50 + 10*zVal);
+}
+
+/* ---------------- TRIAL SEQUENCE ---------------- */
+for (let i=0;i<TOTAL_TRIALS;i++) {
+  trials.push(Math.random() < NO_GO_RATE ? "X" : LETTERS[Math.floor(Math.random()*25)]);
+}
+
+document.body.onkeydown = e => { if (e.code === "Space") respond(); };
+btn.onclick = respond;
+
+function respond() {
+  if (!waiting) return;
+  data.push({ letter: trials[idx], rt: performance.now() - startTime });
+  waiting = false;
+}
+
+function runTrial() {
+  if (idx >= TOTAL_TRIALS) return finish();
+  stim.textContent = trials[idx];
+  counter.textContent = `Trial ${idx+1} / ${TOTAL_TRIALS}`;
+  startTime = performance.now();
+  waiting = true;
+
+  setTimeout(() => stim.textContent = "", STIM_MS);
+  setTimeout(() => {
+    if (waiting) data.push({ letter: trials[idx], rt: null });
+    waiting = false;
+    idx++;
+    runTrial();
+  }, STIM_MS + ISI_MS);
+}
+
+setTimeout(runTrial, 1000);
+
+/* ---------------- RESULTS ---------------- */
+function finish() {
+  btn.disabled = true;
+  stim.textContent = "Calculating results…";
+
+  const targets = trials.filter(l=>l!=="X").length;
+  const noGos = trials.filter(l=>l==="X").length;
+
+  const hits = data.filter(d=>d.letter!=="X" && d.rt!==null);
+  const omissions = targets - hits.length;
+  const commissions = data.filter(d=>d.letter==="X" && d.rt!==null).length;
+
+  const rts = hits.map(h=>h.rt);
+  const meanRT = rts.reduce((a,b)=>a+b,0)/rts.length;
+  const rtSD = Math.sqrt(rts.reduce((s,v)=>s+(v-meanRT)**2,0)/rts.length);
+
+  const hitRate = hits.length / targets;
+  const faRate = commissions / noGos;
+  const dP = dPrime(hitRate, faRate);
+
+  const metrics = [
+    {name:"Omission Errors (%)", raw:(omissions/targets)*100, norm:NORMS.omission},
+    {name:"Commission Errors (%)", raw:(commissions/noGos)*100, norm:NORMS.commission},
+    {name:"Mean RT (ms)", raw:meanRT, norm:NORMS.rt},
+    {name:"RT SD (ms)", raw:rtSD, norm:NORMS.rtSD},
+    {name:"Detectability (d′)", raw:dP, norm:NORMS.dprime}
+  ];
+
+  metrics.forEach(m=>{
+    m.T = zToT(m.raw, m.norm.mean, m.norm.sd, m.norm.dir==="low");
+    m.abnormal = (m.T >= 65 || m.T <= 35);
+  });
+
+  renderTable(metrics);
+  plotScatter(metrics);
+  renderInterpretation(metrics);
+}
+
+/* ---------------- TABLE ---------------- */
+function renderTable(metrics) {
+  document.body.innerHTML += `
+  <h2>Norm-Referenced Results</h2>
+  <table>
+    <tr><th>Metric</th><th>Raw</th><th>T-Score</th></tr>
+    ${metrics.map(m=>`
+      <tr>
+        <td>${m.name}</td>
+        <td>${m.raw.toFixed(2)}</td>
+        <td class="${m.abnormal?'abnormal':''}">${m.T}</td>
+      </tr>`).join("")}
+  </table>`;
+}
+
+/* ---------------- SCATTERPLOT (TRUE) ---------------- */
+function plotScatter(metrics) {
+  canvas.style.display = "block";
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const margin = 50;
+
+  /* Axes */
+  ctx.strokeStyle="#000";
+  ctx.beginPath();
+  ctx.moveTo(margin, margin);
+  ctx.lineTo(margin, h-margin);
+  ctx.lineTo(w-margin, h-margin);
+  ctx.stroke();
+
+  /* Y-axis ticks */
+  ctx.font="12px Arial";
+  for(let T=0;T<=100;T+=10){
+    const y = margin + (1 - T/100)*(h-2*margin);
+    ctx.beginPath();
+    ctx.moveTo(margin-5,y);
+    ctx.lineTo(margin+5,y);
+    ctx.stroke();
+    ctx.fillText(T, 10, y+4);
+  }
+
+  /* Normal band (T=40–60) */
+  const bandTop = margin + (1-0.6)*(h-2*margin);
+  const bandHeight = (0.6-0.4)*(h-2*margin);
+  ctx.fillStyle="rgba(0,180,0,0.18)";
+  ctx.fillRect(margin, bandTop, w-2*margin, bandHeight);
+
+  /* Title */
+  ctx.fillStyle="#000";
+  ctx.font="16px Arial";
+  ctx.fillText(
+    "Norm-Referenced CPT Scatterplot (T-Scores)",
+    w/2 - ctx.measureText("Norm-Referenced CPT Scatterplot (T-Scores)").width/2,
+    25
+  );
+
+  /* Points */
+  const spacing = (w-2*margin)/(metrics.length+1);
+  metrics.forEach((m,i)=>{
+    const x = margin + spacing*(i+1);
+    const y = margin + (1-m.T/100)*(h-2*margin);
+
+    ctx.strokeStyle = m.abnormal ? "red" : "blue";
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.moveTo(x-8,y-8); ctx.lineTo(x+8,y+8);
+    ctx.moveTo(x-8,y+8); ctx.lineTo(x+8,y-8);
+    ctx.stroke();
+
+    ctx.fillStyle="#000";
+    ctx.font="12px Arial";
+    ctx.fillText(m.name, x-ctx.measureText(m.name).width/2, h-margin+20);
+  });
+
+  /* Legend */
+  ctx.font="13px Arial";
+  ctx.fillStyle="blue"; ctx.fillText("Blue X = Typical", w-190, margin+15);
+  ctx.fillStyle="red";  ctx.fillText("Red X = Atypical", w-190, margin+32);
+}
+
+/* ---------------- INTERPRETATION ---------------- */
+function renderInterpretation(metrics) {
+  const atyp = metrics.filter(m=>m.abnormal).length;
+  const profile = atyp>=2 ? "Atypical Attention Profile" : "Typical Attention Profile";
+
+  document.body.innerHTML += `
+  <h2>Interpretation</h2>
+  <p>
+  Performance was compared to published adult normative data.
+  ${profile==="Typical Attention Profile"
+    ? "Results largely fell within expected limits."
+    : "Multiple atypical scores were observed across attentional domains."}
+  </p>
+  <ul>
+    ${metrics.map(m=>`
+      <li><strong>${m.name}:</strong>
+      ${m.abnormal
+        ? "Atypical performance relative to norms, suggesting reduced efficiency in this domain."
+        : "Performance within the expected normative range."}
+      </li>`).join("")}
+  </ul>
+  <p><strong>Overall Profile:</strong> ${profile}. Results should be interpreted alongside clinical history and other assessment data.</p>
+  <p><em>Norms: Riccio et al., 2002 (healthy adult controls)</em></p>
+  `;
+}
+</script>
+</body>
 </html>
